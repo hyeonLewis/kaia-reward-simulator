@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import requests
 
 # Constants
 BLOCKS_PER_SECOND = 1
@@ -10,10 +11,31 @@ MIN_STAKE = 5_000_000
 MAX_STAKE = 500_000_000
 MAX_TOTAL_STAKE = 3_000_000_000
 
+RPC_URL = "https://public-en.node.kaia.io"
+
+def cosolidate_staking():
+    # request rpc call "kaia_getStakingInfo("latest")" and get the result
+    response = requests.post(RPC_URL, json={"jsonrpc": "2.0", "method": "kaia_getStakingInfo", "params": ["latest"], "id": 1})
+    result = response.json()["result"]
+    reward_addrs = result["councilRewardAddrs"]
+    council_staking_amounts = result["councilStakingAmounts"]
+
+    rewardAddrsToStakingAmt = {}
+    for i in range(len(reward_addrs)):
+        if reward_addrs[i] not in rewardAddrsToStakingAmt:
+            rewardAddrsToStakingAmt[reward_addrs[i]] = 0
+        rewardAddrsToStakingAmt[reward_addrs[i]] += council_staking_amounts[i]
+
+    staking_amounts = list(rewardAddrsToStakingAmt.values())
+    staking_amounts = [int(amount) for amount in staking_amounts if amount >= MIN_STAKE]
+    staking_amounts.sort()
+
+    return staking_amounts
+
 # Staking distribution function
 def generate_staking_distribution(vn, spread, mode="normal"):
     if mode == "kaia_exact_style":
-        staking_amounts = np.array([663_000_000, 289_000_000, 285_000_000, 177_000_000, 135_000_000, 113_000_000, 70_000_000, 63_000_000, 61_000_000, 60_000_000, 54_000_000, 53_000_000, 53_000_000, 48_000_000, 25_000_000, 25_000_000, 25_000_000, 25_000_000, 21_000_000, 21_000_000, 21_000_000, 20_000_000, 20_000_000, 17_000_000, 17_000_000, 14_000_000, 14_000_000, 12_000_000, 12_000_000, 10_000_000, 9_000_000, 9_000_000, 8_000_000, 6_000_000, 5_500_000, 5_000_001, 5_000_001, 5_000_000, 5_000_000, 5_000_000, 5_000_000, 5_000_000])
+        staking_amounts = np.array(cosolidate_staking())
 
     elif mode == "kaia_style":
         major_stakers = np.array([663_000_000, 289_000_000, 285_000_000, 177_000_000, 135_000_000, 113_000_000, 70_000_000, 63_000_000])
